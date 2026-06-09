@@ -4,6 +4,8 @@ import random
 
 GAME_WIDTH = 360
 GAME_HEIGHT = 640
+GAME_TITLE = "Flappy Bird"
+GAME_ICON = "flappybirdicon.png"
 
 bird_x = GAME_WIDTH/8
 bird_y = GAME_HEIGHT/2
@@ -26,6 +28,15 @@ class Pipe(pygame.Rect):
         self.img = img
         self.passed = False
 
+play_button_width = 50
+play_button_height = 50
+play_button_x = (GAME_WIDTH - play_button_width) / 2
+play_button_y = (GAME_HEIGHT - play_button_height) / 2
+
+class PlayButton(pygame.Rect):
+    def __init__(self, img):
+        pygame.Rect.__init__(self, play_button_x, play_button_y, play_button_width, play_button_height)
+        self.img = img
 
 background_image = pygame.image.load("flappybirdbg.png")
 bird_image = pygame.image.load("flappybird.png")
@@ -34,14 +45,18 @@ top_pipe_image = pygame.image.load("toppipe.png")
 top_pipe_image = pygame.transform.scale(top_pipe_image, (pipe_width, pipe_height))
 bottom_pipe_image = pygame.image.load("bottompipe.png")
 bottom_pipe_image = pygame.transform.scale(bottom_pipe_image, (pipe_width, pipe_height))
+play_button_image = pygame.image.load("playbutton.png")
+play_button_image = pygame.transform.scale(play_button_image, (play_button_width, play_button_height))
 
 bird = Bird(bird_image) 
+play_button = PlayButton(play_button_image) 
 pipes = []
 velocity_x = -2
 velocity_y = 0
 gravity = 0.4
 score = 0
 game_over = False
+game_started = False
 
 def draw():
     window.blit(background_image, (0, 0))
@@ -50,15 +65,23 @@ def draw():
     for pipe in pipes:
         window.blit(pipe.img, (pipe.x, pipe.y))
 
+    text_font = pygame.font.SysFont("Monospace", 20)
+
     text_str = str(int(score))
     text_score = "Score: " + text_str
+    score_render = text_font.render(text_score, True, (255, 255, 255))
+
+    if not game_over:
+        window.blit(score_render, (10, 5))
+
     if game_over:
-        text_score = "Game Over: " + text_str
+        text_font = pygame.font.SysFont("Monospace", 20, bold=True)
+        gameover_render = text_font.render("Game Over: " + text_str, True, "Red")
+        window.blit(gameover_render, (GAME_WIDTH/2 - 70, GAME_HEIGHT/2 - 50))
 
-    text_font = pygame.font.SysFont("Monospace", 20)
-    text_render = text_font.render(text_score, True, (255, 255, 255))
-    window.blit(text_render, (10, 5))
-
+    if not game_started or game_over:
+        window.blit(play_button.img, play_button)
+        
 def move():
     global velocity_y, score, game_over
     velocity_y += gravity
@@ -97,9 +120,20 @@ def create_pipes():
 
     print(len(pipes))
 
+def reset_game():
+    global velocity_y, score, game_over, game_started
+    bird.y = bird_y
+    score = 0
+    velocity_y = 0
+    pipes.clear()
+    game_over = False
+    game_started = True
+
 pygame.init()
 window = pygame.display.set_mode((GAME_WIDTH, GAME_HEIGHT))
 pygame.display.set_caption("Flappy Bird")
+icon = pygame.image.load(GAME_ICON)
+pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
 
 create_pipes_timer = pygame.USEREVENT + 0
@@ -111,21 +145,28 @@ while True:
             pygame.quit()
             exit()
 
-        if event.type == create_pipes_timer and not game_over:
+        if event.type == create_pipes_timer and game_started and not game_over:
             create_pipes()
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if not game_started or game_over:
+                if play_button.collidepoint(event.pos):
+                    reset_game()
 
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
+                if not game_started or game_over:
+                    reset_game()
+                else:
+                    velocity_y = -6
+
+    if event.type == pygame.KEYDOWN:
+        if game_started and not game_over:
+            if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
                 velocity_y = -6
 
-                if game_over:
-                    bird.y = bird_y
-                    score = 0
-                    pipes.clear()
-                    game_over = False
-
-    if not game_over:
+    if game_started and not game_over:
         move()
-        draw()
-        pygame.display.update()
-        clock.tick(60)
+    draw()
+    pygame.display.update()
+    clock.tick(60)
